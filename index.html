@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Classification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+            background-image: url("images/opacity.png");
+            background-size:40% 60%;
+            background-repeat: no-repeat;
+            background-position-x: 61%;
+            background-position-y: center;
+            background-blend-mode: 10px;
+            background-attachment: fixed;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+        }
+
+        header {
+            background-color: #f4f4f4;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .sidebar {
+            background-color: #333;
+            color: white;
+            width: 250px;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .sidebar .dropdown {
+            position: relative;
+        }
+
+        .sidebar .dropbtn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+
+        .sidebar .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 40px;
+            width: 100%;
+            z-index: 1;
+            border-radius: 4px;
+        }
+
+        .sidebar .dropdown-content button {
+            background-color: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            padding: 10px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+            text-align: left;
+        }
+
+        .sidebar .dropdown-content button:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+
+        main {
+            flex: 1;
+            padding: 20px;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        input, textarea, button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        #classificationResults p {
+            margin: 10px 0;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        #uploadStatus {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        #homeButton {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        #homeButton:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div><img src="images/MM.png" alt="Logo" height="100px" width="130px" style="padding-left: 55px;"></div>
+            <h3 style="padding-left: 50px;">Mail Masterspro</h3>
+            <button id="homeButton">Home</button>
+            <div class="dropdown">
+                <button class="dropbtn">Categories</button>
+                <div class="dropdown-content" id="dropdownContent">
+                </div>
+            </div>
+            <div id="results"></div>
+        </div>
+
+        <main id="mainContent">
+            <div id="emailClassification">
+                <center><h1>Email Classification</h1></center>
+                <form id="emailForm">
+                    <label for="gmail">Email:</label>
+                    <input type="text" id="gmail" name="gmail" required>
+                    
+                    <label for="subject">Subject:</label>
+                    <input type="text" id="subject" name="subject" required>
+                    
+                    <label for="body">Body:</label>
+                    <textarea id="body" name="body" required></textarea>
+                    
+                    <button type="submit">Classify Email</button>
+                </form>
+                
+                <div id="classificationResults">
+                    <p id="spamStatus"></p>
+                    <p id="category"></p>
+                    <p id="relevance"></p>
+                </div>
+
+                <form id="csvUploadForm">
+                    <label for="csvFile">Upload CSV File:</label>
+                    <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
+                    <button type="submit">Upload and Categorize</button>
+                </form>
+                <div id="uploadStatus"></div>
+            </div>
+            <div id="categoryResults" class="hidden">
+                <h2 id="categoryHeading"></h2>
+                <div id="categoryEmails"></div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let classifiedEmails = [];
+        let categories = ['Resume', 'Application', 'HR', 'Meeting', 'Spam', 'Other'];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('emailForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const gmail = document.getElementById('gmail').value;
+                const subject = document.getElementById('subject').value;
+                const body = document.getElementById('body').value;
+
+                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+                if (!emailPattern.test(gmail)) {
+                    alert("Please enter a valid email address.");
+                    return;
+                }
+
+                await classifyEmail(gmail, subject, body);
+
+                resetForm();
+            });
+
+            document.querySelector('.dropbtn').addEventListener('click', function() {
+                document.getElementById('dropdownContent').classList.toggle('show');
+            });
+
+            window.addEventListener('click', function(event) {
+                if (!event.target.matches('.dropbtn')) {
+                    const dropdowns = document.getElementsByClassName("dropdown-content");
+                    for (let i = 0; i < dropdowns.length; i++) {
+                        const openDropdown = dropdowns[i];
+                        if (openDropdown.classList.contains('show')) {
+                            openDropdown.classList.remove('show');
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('csvUploadForm').addEventListener('submit', handleCSVUpload);
+
+            document.getElementById('homeButton').addEventListener('click', showEmailClassification);
+
+            populateCategories();
+        });
+
+        async function classifyEmail(gmail, subject, body) {
+            try {
+                const response = await fetch('/classify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: gmail,
+                        subject: subject,
+                        body: body
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+
+                //document.getElementById('spamStatus').textContent = `Spam: ${data.is_spam}`;
+                document.getElementById('category').textContent = `Category: ${data.category}`;
+                document.getElementById('relevance').textContent = `Relevance: ${data.relevance}`;
+
+                classifiedEmails.push({ 
+                    gmail, 
+                    subject, 
+                    body, 
+                    category: data.category, 
+                    original_category: data.original_category,
+                    relevance: data.relevance 
+                });
+
+                alert(`Email categorized under ${data.category}`);
+
+            } catch (error) {
+                console.error('Error during classification:', error);
+                alert('An error occurred during classification. Please try again.');
+            }
+        }
+
+        function populateCategories() {
+            const dropdownContent = document.getElementById('dropdownContent');
+            dropdownContent.innerHTML = '';
+
+            categories.forEach(category => {
+                const categoryButton = document.createElement('button');
+                categoryButton.textContent = category;
+                categoryButton.onclick = function() {
+                    displayCategory(category);
+                };
+                dropdownContent.appendChild(categoryButton);
+            });
+        }
+
+        function displayCategory(selectedCategory) {
+            const filteredEmails = classifiedEmails.filter(email => email.category === selectedCategory);
+
+            const categoryHeading = document.getElementById('categoryHeading');
+            categoryHeading.textContent = `${selectedCategory} Mails`;
+
+            const categoryEmailsDiv = document.getElementById('categoryEmails');
+            categoryEmailsDiv.innerHTML = '';
+
+            if (filteredEmails.length > 0) {
+                filteredEmails.forEach(email => {
+                    const emailDiv = document.createElement('div');
+                    emailDiv.innerHTML = `
+                        <strong>Email:</strong> ${email.gmail}<br>
+                        <strong>Subject:</strong> ${email.subject}<br>
+                        <strong>Body:</strong> ${email.body}<br>
+                        <strong>Category:</strong> ${email.category}<br>
+                        ${email.category === 'Other' ? `<strong>Original Category:</strong> ${email.original_category}<br>` : ''}
+                        <strong>Relevance:</strong> ${email.relevance}<br>
+                        <hr>
+                    `;
+                    categoryEmailsDiv.appendChild(emailDiv);
+                });
+            } else {
+                categoryEmailsDiv.innerHTML = `<p>No emails found under ${selectedCategory} category.</p>`;
+            }
+
+            document.getElementById('emailClassification').classList.add('hidden');
+            document.getElementById('categoryResults').classList.remove('hidden');
+        }
+
+        function showEmailClassification() {
+            document.getElementById('emailClassification').classList.remove('hidden');
+            document.getElementById('categoryResults').classList.add('hidden');
+        }
+
+        function resetForm() {
+            document.getElementById('emailForm').reset();
+        }
+
+        async function handleCSVUpload(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            const statusDiv = document.getElementById('uploadStatus');
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    statusDiv.textContent = 'Uploading and processing CSV...';
+                    const response = await fetch('/upload-csv/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Network response was not ok');
+                    }
+
+                    processCSVResults(data.results);
+                    statusDiv.textContent = 'CSV processed successfully. Emails have been categorized.';
+                } catch (error) {
+                    console.error('Error:', error);
+                    statusDiv.textContent = `An error occurred while processing the CSV: ${error.message}`;
+                }
+            } else {
+                statusDiv.textContent = 'Please select a CSV file to upload.';
+            }
+        }
+
+        function processCSVResults(results) {
+            classifiedEmails = [];
+            for (const [category, emails] of Object.entries(results)) {
+                emails.forEach(email => {
+                    classifiedEmails.push({
+                        gmail: email.sender,
+                        subject: email.subject,
+                        body: email.message,
+                        category: category,
+                        original_category: email.original_category,
+                        relevance: email.relevance
+                    });
+                });
+            }
+        }
+    </script>
+</body>
+</html>
