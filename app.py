@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 import csv
 from io import StringIO
 from fastapi.staticfiles import StaticFiles
-
+import os
 app = FastAPI()
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Replace with your actual API key
-client = Groq(api_key="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")
+client = Groq(api_key=os.env("grok_api_key")
 
 VALID_CATEGORIES = {'Resume', 'Application', 'HR', 'Meeting', 'Spam'}
 
